@@ -6,10 +6,15 @@ perl:
    - "5.14"
    - "5.12"
    - "5.10"
+   - "5.8"
+
+matrix:
+   allow_failures:
+         - perl: "5.8"
 
 before_install:
-   # Prevent "Please tell me who you are" errors for certain DZIL configs
-   - git config --global user.name "TravisCI"
+   - git config user.name 'Travis-CI'
+   - git config user.email 'travis@nowhere.dne'
 
 install:
    # Deal with all of the DZIL dependancies, quickly and quietly
