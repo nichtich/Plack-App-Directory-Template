@@ -17,7 +17,7 @@ test_psgi $app, sub {
     ok $res->content =~ qr{<a href='/%23foo'>\#foo</a>}m;
 };
 
-my $app = Plack::App::Directory::Template->new(
+$app = Plack::App::Directory::Template->new(
     root => 't/dir',
     templates => \"[% files.size %]",
 );

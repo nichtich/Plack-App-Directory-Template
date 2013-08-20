@@ -57,12 +57,7 @@ sub serve_path {
         }
     }
 
-    $env->{'tt.vars'} = {
-        dir   => abs_path($dir),
-        files => $self->filter ?
-                 [ grep { defined $_ } map { $self->filter->($_) } @files ]  : \@files,
-    };
-
+    $env->{'tt.vars'} = $self->template_vars($dir, \@files);
     $env->{'tt.template'} = ref $self->{templates}
                           ? $self->{templates} : 'index.html';
 
@@ -74,6 +69,16 @@ sub serve_path {
     )->to_app;
 
     return $self->{tt}->($env);
+}
+
+sub template_vars {
+    my ($self, $dir, $files) = @_;
+
+    return {
+        dir   => abs_path($dir),
+        files => $self->filter ?
+                 [ grep { defined $_ } map { $self->filter->($_) } @$files ]  : $files,
+    };
 }
 
 =head1 SYNOPSIS
@@ -164,6 +169,15 @@ template variables  One can use such filter to omit selected files and to
 modify or extend file objects.
 
 =back
+
+=head1 METHODS
+
+=head2 template_vars($dir, \@files)
+
+This method is internally used to construct a hash reference with template
+variables (C<dir> and C<files>) from the directory and an unfiltered list of
+files. It is documented here as possible hook for subclasses that add more
+template variables.
 
 =head1 SEE ALSO
 
