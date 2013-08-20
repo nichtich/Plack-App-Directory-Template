@@ -17,7 +17,7 @@ use URI::Escape;
 
 sub serve_path {
     my($self, $env, $dir, $fullpath) = @_;
-    
+
     if (-f $dir) {
         return $self->SUPER::serve_path($env, $dir, $fullpath);
     }
@@ -42,12 +42,12 @@ sub serve_path {
         my $file = "$dir/$_";
         my $url  = $dir_url . $_;
         my $stat = stat($file);
-        
+
         $url = join '/', map {uri_escape($_)} split m{/}, $url;
 
         my $is_dir = -d $file; # TODO: use Fcntl instead
 
-        push @files, { 
+        push @files, {
             name        => $is_dir ? "$name/" : $name,
             url         => $is_dir ? "$url/" : $url,
             mime_type   => $is_dir ? 'directory' : ( Plack::MIME->mime_type($file) || 'text/plain' ),
@@ -55,37 +55,39 @@ sub serve_path {
             permission  => $stat ? ($stat->mode & 07777) : undef,
             stat        => $stat,
         }
-    } 
+    }
 
-    my $vars = {
-        files => \@files,
+    $env->{'tt.vars'} = {
         dir   => abs_path($dir),
+        files => $self->filter ?
+                 [ grep { defined $_ } map { $self->filter->($_) } @files ]  : \@files,
     };
-    $self->filter->($vars) if $self->filter;
+
+    $env->{'tt.template'} = ref $self->{templates}
+                          ? $self->{templates} : 'index.html';
 
     $self->{tt} //= Plack::Middleware::TemplateToolkit->new(
-        INCLUDE_PATH => $self->{templates} 
-                        // eval { dist_dir('Plack-App-Directory-Template') } 
+        INCLUDE_PATH => $self->{templates}
+                        // eval { dist_dir('Plack-App-Directory-Template') }
                         // 'share',
         request_vars => [qw(scheme base parameters path user)],
     )->to_app;
-
-    $env->{'tt.vars'}     = $vars;
-    $env->{'tt.template'} = 'index.html';
 
     return $self->{tt}->($env);
 }
 
 =head1 SYNOPSIS
 
-    use Plack::App::Directory;
+    use Plack::App::Directory::Template;
+
+    my $template = "/path/to/templates"; # or \$template_string
+
     my $app = Plack::App::Directory::Template->new(
         root      => "/path/to/htdocs",
-        templates => "/path/to/templates",  # optional
+        templates => $template, # optional
         filter    => sub {
-            $_[0]->{files} = [              # hide hidden files
-                 grep { $_->{name} =~ qr{^[^.]|^\.+/$} } @{$_[0]->{files}}
-            ];
+             # hide hidden files
+             $_[0]->{name} =~ qr{^[^.]|^\.+/$} ? $_[0] : undef;
         }
     )->to_app;
 
@@ -140,7 +142,7 @@ properties L<parameters>, L<base>, L<scheme>, L<path>, and L<user>.
 
 =back
 
-Most part of the code is copied from Plack::App::Directory.
+Most part of the code is copied from L<Plack::App::Directory>.
 
 =head1 CONFIGURATION
 
@@ -152,19 +154,22 @@ Document root directory. Defaults to the current directory.
 
 =item templates
 
-Template directory that must include at least a file named C<index.html>.
+Template directory that must include at least a file named C<index.html> or
+template given as string reference.
 
 =item filter
 
-A code reference that is passed a hash reference with the template variables
-C<dir> and C<files>. The reference can be modified before it is passed to the
-template, for instance to filter and extend file information.
+A code reference that is called for each file before files are passed as
+template variables  One can use such filter to omit selected files and to
+modify or extend file objects.
 
 =back
 
 =head1 SEE ALSO
 
 L<Plack::App::Directory>, L<Plack::Middleware::TemplateToolkit>
+
+=encoding utf8
 
 =cut
 
