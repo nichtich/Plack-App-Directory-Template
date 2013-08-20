@@ -79,7 +79,7 @@ sub serve_path {
 =head1 SYNOPSIS
 
     use Plack::App::Directory;
-    my $app = Plack::App::Directory->new({ 
+    my $app = Plack::App::Directory::Template->new(
         root      => "/path/to/htdocs",
         templates => "/path/to/templates",  # optional
         filter    => sub {
@@ -87,7 +87,7 @@ sub serve_path {
                  grep { $_->{name} =~ qr{^[^.]|^\.+/$} } @{$_[0]->{files}}
             ];
         }
-    })->to_app;
+    )->to_app;
 
 =head1 DESCRIPTION
 
