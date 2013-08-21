@@ -60,7 +60,7 @@ sub serve_path {
         }
     }
 
-    $env->{'tt.vars'} = $self->template_vars($dir, \@files);
+    $env->{'tt.vars'} = $self->template_vars( dir => $dir, files => \@files );
     $env->{'tt.template'} = ref $self->{templates}
                           ? $self->{templates} : 'index.html';
 
@@ -75,12 +75,16 @@ sub serve_path {
 }
 
 sub template_vars {
-    my ($self, $dir, $files) = @_;
+    my ($self, %args) = @_;
+
+	my $files = $args{files};
+	if ($self->filter) {
+	    $files = [ grep { defined $_ } map { $self->filter->($_) } @$files ]
+	}
 
     return {
-        dir   => abs_path($dir),
-        files => $self->filter ?
-                 [ grep { defined $_ } map { $self->filter->($_) } @$files ]  : $files,
+        dir   => abs_path($args{dir}),
+        files => $files,
     };
 }
 
