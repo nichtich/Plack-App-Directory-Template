@@ -3,6 +3,7 @@ package Plack::App::Directory::Template;
 
 use strict;
 use warnings;
+use v5.10.1;
 
 use parent qw(Plack::App::Directory);
 
@@ -36,8 +37,10 @@ sub serve_path {
     }
 
     my @files;
+    my @special = ('.');
+    push @special, '..' if $env->{PATH_INFO} !~ qr{^/?$};
 
-    foreach ( '.', '..', sort { $a cmp $b } @children ) {
+    foreach ( @special, sort { $a cmp $b } @children ) {
         my $name = $_;
         my $file = "$dir/$_";
         my $url  = $dir_url . $_;
@@ -109,8 +112,9 @@ The directory that is listed (absolute server path).
 
 =item files
 
-List of files, each with the following properties. The special files C<.> and
-C<..> are included on purpose. All directory names end with a slash (C</>).
+List of files, each with the following properties. All directory names end with
+a slash (C</>). The special directory C<./> is included and C<../> as well, 
+unless the root directory is listed.
 
 =over 4
 
