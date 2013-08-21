@@ -151,7 +151,7 @@ print this in a template with C<< [% file.permission | format("%04o") %] >>.
 =item request
 
 Information about the HTTP request as given by L<Plack::Request>. Includes the
-properties L<parameters>, L<base>, L<scheme>, L<path>, and L<user>.
+properties C<parameters>, C<base>, C<scheme>, C<path>, and C<user>.
 
 =back
 
