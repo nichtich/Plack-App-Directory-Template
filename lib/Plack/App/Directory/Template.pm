@@ -144,8 +144,6 @@ rdev, size, atime, mtime, ctime, blksize, and block).
 File permissions (given by C<< file.stat.mode & 0777 >>). For instance one can
 print this in a template with C<< [% file.permission | format("%04o") %] >>.
 
-=item
-
 =back
 
 =item request
