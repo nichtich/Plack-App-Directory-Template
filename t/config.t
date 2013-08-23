@@ -7,7 +7,7 @@ use Plack::App::Directory::Template;
 
 my $app = Plack::App::Directory::Template->new(
     root   => 't/dir/subdir',
-    filter => sub { $_[0]->{name} =~ /foo/ ? $_[0] : () },
+    filter => sub { $_[0]->name =~ /foo/ ? $_[0] : () },
     templates    => '/dev/null',
     INCLUDE_PATH => 't/templates',
     VARIABLES    => { x => 42 },
