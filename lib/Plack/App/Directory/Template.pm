@@ -1,20 +1,27 @@
+use strict;
+use warnings;
 package Plack::App::Directory::Template;
 #ABSTRACT: Serve static files from document root with directory index template
 
-use strict;
-use warnings;
 use v5.10.1;
 
 use parent qw(Plack::App::Directory);
 
-use Plack::Util::Accessor qw(filter);
-
 use Plack::Middleware::TemplateToolkit;
+use Plack::Util::Accessor qw(filter templates);
+
 use File::ShareDir qw(dist_dir);
 use File::stat;
 use DirHandle;
 use Cwd qw(abs_path);
 use URI::Escape;
+
+sub prepare_app {
+    my $self = shift;
+
+    $self->{_default_vars} = delete $self->{VARIABLES} // { };
+    $self->{templates} = delete $self->{INCLUDE_PATH} if $self->{INCLUDE_PATH};
+}
 
 sub serve_path {
     my($self, $env, $dir, $fullpath) = @_;
@@ -60,24 +67,32 @@ sub serve_path {
         }
     }
 
-    my $vars = {
+    $files = [ map { $self->filter->($_) || () } @$files ] if $self->filter;
+
+    my $default_vars = {
+        %{ $self->{_default_vars} },
         path    => $env->{PATH_INFO},
         urlpath => $urlpath,
         root    => abs_path($self->root),
         dir     => abs_path($dir),
     };
 
-    $files = [ map { $self->filter->($_) || () } @$files ] if $self->filter;
+    my $tt_vars = $self->template_vars( %$default_vars, files => $files );
+    if ($env->{'tt.vars'}) {
+        $env->{'tt.vars'}->{$_} = $tt_vars->{$_} for keys %$tt_vars; 
+    } else {
+        $env->{'tt.vars'} = $tt_vars;
+    }
 
-    $env->{'tt.vars'} = $self->template_vars( %$vars, files => $files );
-    $env->{'tt.template'} = ref $self->{templates} ? $self->{templates} : 'index.html';
+    $env->{'tt.template'} = ref $self->templates ? $self->templates : 'index.html';
 
     $self->{tt} //= Plack::Middleware::TemplateToolkit->new(
-        INCLUDE_PATH => $self->{templates}
+        INCLUDE_PATH => $self->templates
                         // eval { dist_dir('Plack-App-Directory-Template') }
                         // 'share',
-        VARIABLES     => $vars,
+        VARIABLES    => $default_vars,
         request_vars => [qw(scheme base parameters path user)],
+        map { $_ => $self->{$_} } grep { $_ =~ /^[A-Z_]+$/ } keys %$self
     )->to_app;
 
     return $self->{tt}->($env);
@@ -127,6 +142,11 @@ template given as string reference.
 A code reference that is called for each file before files are passed as
 template variables  One can use such filter to omit selected files and to
 modify and extend file objects.
+
+=item L<Template> configuration
+
+Template Toolkit configuration options (e.g. C<PRE_PROCESS>, C<POST_CHOMP> etc.)
+are supported as well.
 
 =back
 
