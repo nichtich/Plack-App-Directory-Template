@@ -82,7 +82,8 @@ sub serve_path {
         $env->{'tt.vars'} = $tt_vars;
     }
 
-    $env->{'tt.template'} = ref $self->templates ? $self->templates : 'index.html';
+    $env->{'tt.template'} = ref $self->templates ? $self->templates 
+                          : ($self->{PROCESS} // 'index.html');
 
     $self->{tt} //= Plack::Middleware::TemplateToolkit->new(
         INCLUDE_PATH => $self->templates
@@ -193,14 +194,16 @@ modify and extend file objects.
 
 =item L<Template> configuration
 
-Template Toolkit configuration options (e.g. C<PRE_PROCESS>, C<POST_CHOMP> etc.)
-are supported as well.
+Template Toolkit configuration options (C<PRE_PROCESS>, C<POST_CHOMP>,
+C<PROCESS> etc.) are supported as well.
 
 =back
 
 =head1 TEMPLATE VARIABLES
 
-The following variables are passed to the directory index template:
+The following variables are passed to the directory index template. Have a look
+at the default template, shipped as file C<share/index.html> with this module,
+for usage example.
 
 =over 4
 
