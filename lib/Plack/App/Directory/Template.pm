@@ -2,8 +2,8 @@ use strict;
 use warnings;
 package Plack::App::Directory::Template;
 #ABSTRACT: Serve static files from document root with directory index template
-
-use v5.10.1;
+#VERSION
+use v5.10;
 
 use parent qw(Plack::App::Directory);
 
@@ -28,6 +28,13 @@ sub serve_path {
 
     if (-f $dir) {
         return $self->SUPER::serve_path($env, $dir, $fullpath);
+    }
+
+    if (defined $self->{dir_index}) {
+        my $index_file = "$dir/".$self->{dir_index};
+        if (-f $index_file) {
+            return $self->SUPER::serve_path($env, $index_file, $fullpath);
+        }
     }
 
     my $urlpath = $env->{SCRIPT_NAME} . $env->{PATH_INFO};
@@ -169,9 +176,9 @@ sub mode_string { # not tested or documented
 
 =head1 DESCRIPTION
 
-This does what L<Plack::App::Directory> does but with more fancy looking
-directory index pages, based on L<Template::Toolkit>.  Parts of the code of
-this module are copied from L<Plack::App::Directory>.
+Plack::App::Directory::Template extends L<Plack::App::Directory> by support of
+HTML templates (with L<Template::Toolkit>) for better customization of
+directory index pages. 
 
 =head1 CONFIGURATION
 
@@ -183,14 +190,20 @@ Document root directory. Defaults to the current directory.
 
 =item templates
 
-Template directory that must include at least a file named C<index.html> or
+Either a template directory that includes the template file C<index.html> or a
 template given as string reference.
 
 =item filter
 
 A code reference that is called for each file before files are passed as
 template variables  One can use such filter to omit selected files and to
-modify and extend file objects.
+modify and extend file objects. Note that omitted files are not shown in the
+directory index but they can still be retrieved.
+
+=item dir_index
+
+Serve an index file (e.g. "index.html") instead of directory listing if the
+index file exists.
 
 =item L<Template> configuration
 
