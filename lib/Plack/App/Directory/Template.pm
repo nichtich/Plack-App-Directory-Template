@@ -7,7 +7,6 @@ use v5.10;
 
 use parent qw(Plack::App::Directory);
 
-use Plack::Middleware::TemplateToolkit;
 use Plack::Util::Accessor qw(filter templates);
 
 use File::ShareDir qw(dist_dir);
@@ -16,11 +15,21 @@ use DirHandle;
 use Cwd qw(abs_path);
 use URI::Escape;
 
+my %supported = (
+    'Plack::Middleware::TemplateToolkit' => 'process_tt',
+    'Text::Xslate' => 'process_xslate',
+);
+
 sub prepare_app {
     my $self = shift;
+    my $template_engine = delete $self->{TEMPLATE_ENGINE} // 'Plack::Middleware::TemplateToolkit';
+    die "Template engine $template_engine is not supported yet" unless $supported{$template_engine};
 
+    $self->{_template_engine} = $template_engine;
     $self->{_default_vars} = delete $self->{VARIABLES} // { };
     $self->{templates} = delete $self->{INCLUDE_PATH} if $self->{INCLUDE_PATH};
+
+    eval "require $template_engine" or die $@;
 }
 
 sub serve_path {
@@ -61,6 +70,7 @@ sub serve_path {
         my $file = "$dir/$_";
         my $stat = stat($file);
         my $url  = $urlpath . uri_escape($_);
+        my ($ext) = $name =~m/\.(\w*)$/;
 
         my $is_dir = -d $file; # TODO: use Fcntl instead ?
 
@@ -69,11 +79,36 @@ sub serve_path {
             url         => $is_dir ? "$url/" : $url,
             mime_type   => $is_dir ? 'directory' : ( Plack::MIME->mime_type($file) || 'text/plain' ),
             stat        => $stat,
+            ext         => $ext,
         }, 'Plack::App::Directory::Template::File';
     }
 
     $files = [ map { $self->filter->($_) || () } @$files ] if $self->filter;
 
+    my $template_method = $supported{$self->{_template_engine}};
+    return $self->$template_method($env, $dir, $files);
+}
+
+sub process_xslate {
+    my ($self, $env, $dir, $files) = @_;
+    my $template_path = 'templates';
+    my $tx = Text::Xslate->new(
+        path => [ map {$_ . '/' . $template_path} ('.') ],
+    );
+
+    my $template = $self->templates ? $self->templates
+                 : ($self->{PROCESS} // 'index.html');
+    my $page = $tx->render($template, {
+        path => $env->{PATH_INFO},
+        files =>  $files,
+    });
+
+    return [ 200, ['Content-Type' => 'text/html; charset=utf-8'], [ $page ] ];
+}
+
+sub process_tt {
+    my ($self, $env, $dir, $files) = @_;
+    my $urlpath = $env->{SCRIPT_NAME} . $env->{PATH_INFO};
     my $default_vars = {
         %{ $self->{_default_vars} },
         path    => $env->{PATH_INFO},
@@ -81,7 +116,6 @@ sub serve_path {
         root    => abs_path($self->root),
         dir     => abs_path($dir),
     };
-
     my $tt_vars = $self->template_vars( %$default_vars, files => $files );
     if ($env->{'tt.vars'}) {
         $env->{'tt.vars'}->{$_} = $tt_vars->{$_} for keys %$tt_vars; 
@@ -177,7 +211,7 @@ sub mode_string { # not tested or documented
 =head1 DESCRIPTION
 
 Plack::App::Directory::Template extends L<Plack::App::Directory> by support of
-HTML templates (with L<Template::Toolkit>) for better customization of
+HTML templates (as default with L<Template::Toolkit>) for better customization of
 directory index pages. 
 
 =head1 CONFIGURATION
